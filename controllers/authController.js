@@ -434,41 +434,59 @@ const authController = {
 
   // Check verification status
   async checkVerification(req, res) {
+    const respondFromDb = (user) => {
+      const creationTime = user.createdAt ? new Date(user.createdAt) : new Date();
+      const now = new Date();
+      const diffDays = Math.floor((now - creationTime) / (1000 * 60 * 60 * 24));
+      const daysLeft = Math.max(0, 15 - diffDays);
+      return res.status(200).json({
+        success: true,
+        emailVerified: !!user.emailVerified,
+        daysLeft,
+        showReminder: !user.emailVerified && (!user.lastVerificationReminder ||
+          (new Date() - user.lastVerificationReminder) / (1000 * 60 * 60) >= 24)
+      });
+    };
+
     try {
-      // Handle Dev Users (skip Firebase call)
-      if (req.firebaseUid && req.firebaseUid.startsWith('dev_')) {
-        const user = await User.findOne({ firebaseUid: req.firebaseUid }).select('emailVerified lastVerificationReminder createdAt');
-        
+      // Dev users or users without a Firebase UID — answer from the DB
+      const isDevOrNoFirebase = !req.firebaseUid || req.firebaseUid.startsWith('dev_');
+      if (isDevOrNoFirebase) {
+        const user = req.firebaseUid
+          ? await User.findOne({ firebaseUid: req.firebaseUid }).select('emailVerified lastVerificationReminder createdAt')
+          : await User.findById(req.user._id).select('emailVerified lastVerificationReminder createdAt');
         if (!user) {
-           return res.status(404).json({ success: false, error: 'User not found' });
+          return res.status(404).json({ success: false, error: 'User not found' });
         }
-
-        const creationTime = user.createdAt ? new Date(user.createdAt) : new Date();
-        const now = new Date();
-        const diffDays = Math.floor((now - creationTime) / (1000 * 60 * 60 * 24));
-        const daysLeft = Math.max(0, 15 - diffDays);
-
-        return res.status(200).json({
-          success: true,
-          emailVerified: user.emailVerified,
-          daysLeft,
-          showReminder: !user.emailVerified && (!user.lastVerificationReminder || 
-            (new Date() - user.lastVerificationReminder) / (1000 * 60 * 60) >= 24)
-        });
+        return respondFromDb(user);
       }
 
-      // Get fresh data from Firebase
+      // Get fresh data from Firebase. If Firebase lookup fails (user deleted,
+      // creds misconfigured, transient outage), fall back to DB data so the
+      // app doesn't break for everyone.
       const { auth } = require('../config/firebaseAdmin');
-      const firebaseUser = await auth.getUser(req.firebaseUid);
-      
-      // Update in MongoDB
+      let firebaseUser;
+      try {
+        firebaseUser = await auth.getUser(req.firebaseUid);
+      } catch (firebaseErr) {
+        console.error('Firebase getUser failed for uid', req.firebaseUid, '-', firebaseErr.code || firebaseErr.message);
+        const user = await User.findById(req.user._id).select('emailVerified lastVerificationReminder createdAt');
+        if (!user) {
+          return res.status(404).json({ success: false, error: 'User not found' });
+        }
+        return respondFromDb(user);
+      }
+
       const user = await User.findOneAndUpdate(
         { firebaseUid: req.firebaseUid },
         { emailVerified: firebaseUser.emailVerified },
         { returnDocument: 'after' }
-      ).select('emailVerified lastVerificationReminder');
+      ).select('emailVerified lastVerificationReminder createdAt');
 
-      const creationTime = new Date(firebaseUser.metadata.creationTime);
+      const creationTimeSource = firebaseUser.metadata && firebaseUser.metadata.creationTime
+        ? firebaseUser.metadata.creationTime
+        : user.createdAt;
+      const creationTime = new Date(creationTimeSource);
       const now = new Date();
       const diffDays = Math.floor((now - creationTime) / (1000 * 60 * 60 * 24));
       const daysLeft = Math.max(0, 15 - diffDays);
@@ -477,11 +495,11 @@ const authController = {
         success: true,
         emailVerified: user.emailVerified,
         daysLeft,
-        showReminder: !user.emailVerified && (!user.lastVerificationReminder || 
+        showReminder: !user.emailVerified && (!user.lastVerificationReminder ||
           (new Date() - user.lastVerificationReminder) / (1000 * 60 * 60) >= 24)
       });
     } catch (error) {
-      console.error('Check verification error:', error);
+      console.error('Check verification error:', error && (error.stack || error.message || error));
       res.status(500).json({
         success: false,
         error: 'Internal server error'
