@@ -1,0 +1,1085 @@
+openapi: 3.0.0
+info:
+  title: Sansal AI Interview API
+  description: API documentation for the Sansal AI Interview Platform.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api
+    description: Local Development Server
+  - url: https://sansal-backend-xyzsandeepsansal.onrender.com/api
+    description: Production Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+        photoURL:
+          type: string
+        role:
+          type: string
+        interviewsCompleted:
+          type: integer
+        averageScore:
+          type: number
+    Notification:
+      type: object
+      properties:
+        _id:
+          type: string
+        user:
+          type: string
+        type:
+          type: string
+          enum: [booking, meeting_started, system]
+        title:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+        isRead:
+          type: boolean
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        isCleared:
+          type: boolean
+        clearedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    Note:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        subject:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        fileUrl:
+          type: string
+        fileName:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: integer
+        uploader:
+          type: object
+          properties:
+            id:
+              type: string
+              nullable: true
+            name:
+              type: string
+            role:
+              type: string
+              enum: [student, expert, admin]
+        createdAt:
+          type: string
+          format: date-time
+
+paths:
+  # -------------------------
+  # Auth Routes (/api/auth)
+  # -------------------------
+  /auth/login:
+    post:
+      summary: Login or Register with Firebase token
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  description: Firebase ID token
+                  default: "firebase_id_token_example"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  token: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+        '500':
+          description: Server error.
+
+  /auth/login-email:
+    post:
+      summary: Login with Email and Password (Dev Option)
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  default: sandy@gmail.com
+                password:
+                  type: string
+                  default: Sansal@123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  token: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+
+  /auth/signup-email:
+    post:
+      summary: Signup with Email and Password (Dev Option)
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, displayName]
+              properties:
+                email:
+                  type: string
+                  default: sandy@gmail.com
+                password:
+                  type: string
+                  default: Sansal@123
+                displayName:
+                  type: string
+                  default: Sandeep Kumar
+                
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  token: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+
+  /auth/profile:
+    get:
+      summary: Get current user profile (Auth)
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: User profile retrieved
+        '401':
+          description: Unauthorized
+
+    put:
+      summary: Update user profile
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName: { type: string ,default: Sandeep Kumar (updated name)}
+                photoURL: { type: string ,default: https://i.pravatar.cc/150?u=sandy@gmail.com}
+      responses:
+        '200':
+          description: Profile updated
+    delete:
+      summary: Delete user account
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Account deleted successfully
+
+  /auth/verify-email:
+    post:
+      summary: Send verification email
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string,default: sandy@gmail.com }
+                
+      responses:
+        '200':
+          description: Email sent
+
+  /auth/verification-status:
+    get:
+      summary: Check email verification status
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Status retrieved
+
+  /auth/logout:
+    post:
+      summary: Logout user
+      tags: [Auth]
+      responses:
+        '200':
+          description: Logged out
+
+  # -------------------------
+  # User Routes (/api/users)
+  # -------------------------
+  /users/statistics:
+    get:
+      summary: Get user statistics
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Statistics retrieved
+
+  /users/interviews:
+    get:
+      summary: Get interview history
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+        - in: query
+          name: sortBy
+          schema: { type: string, default: "createdAt:desc" }
+      responses:
+        '200':
+          description: History retrieved
+
+  /users/interviews/{id}:
+    get:
+      summary: Get specific interview details
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Interview details retrieved
+
+  /users/save-interview:
+    post:
+      summary: Save interview result (User Controller)
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: { type: string, default: "Frontend Developer" }
+                company: { type: string, default: "Google" }
+                difficulty: { type: string, default: "Medium" }
+                experience: { type: string, default: "Mid-Level" }
+                totalQuestions: { type: integer, default: 5 }
+                timeSpent: { type: integer, default: 15 }
+                totalScore: { type: number, default: 85 }
+                breakdown: 
+                  type: object
+                  default: { "technical": 80, "communication": 90 }
+                feedback: { type: string, default: "Good technical skills." }
+                transcript: 
+                  type: array
+                  default: [{ "role": "ai", "content": "Question 1" }, { "role": "user", "content": "Answer 1" }]
+                recordingUrl: { type: string, default: "http://example.com/recording.mp4" }
+                status: { type: string, default: "completed" }
+      responses:
+        '201':
+          description: Interview saved
+
+  /users/settings:
+    put:
+      summary: Update user settings
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settings: 
+                  type: object
+                  default: { "theme": "dark", "notifications": true }
+      responses:
+        '200':
+          description: Settings updated
+
+  /users/profile:
+    get:
+      summary: Get full user profile with interviews
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Profile retrieved
+
+  # -------------------------
+  # Notification Routes (/api/notifications)
+  # -------------------------
+  /notifications:
+    get:
+      summary: List notifications
+      tags: [Notifications, Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [read, unread]
+        - in: query
+          name: includeCleared
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: audience
+          schema:
+            type: string
+            enum: [student, expert, admin, both]
+      responses:
+        '200':
+          description: Notifications retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+    delete:
+      summary: Clear all notifications
+      tags: [Notifications, Expert]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Notifications cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  cleared: { type: integer }
+
+  /notifications/{id}:
+    delete:
+      summary: Clear a notification
+      tags: [Notifications, Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Notification cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  notification:
+                    $ref: '#/components/schemas/Notification'
+
+  /notifications/{id}/read:
+    patch:
+      summary: Mark notification as read
+      tags: [Notifications, Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Notification updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  notification:
+                    $ref: '#/components/schemas/Notification'
+
+  /notifications/{id}/unread:
+    patch:
+      summary: Mark notification as unread
+      tags: [Notifications, Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Notification updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  notification:
+                    $ref: '#/components/schemas/Notification'
+
+  # -------------------------
+  # Notes Routes (/api/notes)
+  # -------------------------
+  /notes:
+    get:
+      summary: List public notes
+      tags: [Notes]
+      security: []
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search query (title/description/subject/tags)
+        - in: query
+          name: subject
+          schema:
+            type: string
+        - in: query
+          name: tag
+          schema:
+            type: string
+        - in: query
+          name: uploader
+          schema:
+            type: string
+            enum: [student, expert, admin]
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [newest, oldest, title]
+      responses:
+        '200':
+          description: Notes retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+    post:
+      summary: Upload a note
+      tags: [Notes]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, file]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                subject:
+                  type: string
+                tags:
+                  type: string
+                  description: Comma separated tags
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Note uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    $ref: '#/components/schemas/Note'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  # -------------------------
+  # Interview Routes (/api/interviews)
+  # -------------------------
+  /interviews:
+    post:
+      summary: Create interview (Interview Controller)
+      tags: [Interviews]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                config:
+                  type: object
+                  default:
+                    role: "devops"
+                    experience: "senior"
+                    difficulty: "easy"
+                    duration: 45
+                questions:
+                  type: array
+                  default:
+                    - id: 1
+                      question: "What is CI/CD and why is it important?"
+                      ideal_answer: "CI/CD stands for Continuous Integration and Continuous Deployment. It's important because it automates the software delivery process, reduces errors, and enables faster release cycles."
+                      category: "DevOps Concepts"
+                      difficulty: "Easy"
+                      role: "DevOps Engineer"
+                      experience: "fresher"
+                      timeLimit: 120
+                answers:
+                  type: array
+                  default:
+                    - question:
+                        id: 1
+                        question: "What is CI/CD and why is it important?"
+                        ideal_answer: "CI/CD stands for Continuous Integration and Continuous Deployment. It's important because it automates the software delivery process, reduces errors, and enables faster release cycles."
+                        category: "DevOps Concepts"
+                        difficulty: "Easy"
+                        role: "DevOps Engineer"
+                        experience: "fresher"
+                        timeLimit: 120
+                      answer: "dasdas"
+                      score: 0
+                      timeSpent: 5
+                      skipped: false
+                      timestamp: "2026-01-19T19:18:20.756Z"
+                totalScore: { type: number, default: 0 }
+                timeSpent: { type: integer, default: 7 }
+                completed: { type: boolean, default: true }
+                timestamp: { type: string, default: "2026-01-19T19:18:21.662Z" }
+      responses:
+        '201':
+          description: Interview created
+    get:
+      summary: Get all interviews for user
+      tags: [Interviews]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List of interviews
+
+  /interviews/generate-question:
+    post:
+      summary: Generate next question (AI)
+      tags: [Interviews]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role, difficulty_level, experience]
+              properties:
+                role: { type: string, default: "Backend Developer" }
+                difficulty_level: { type: integer, default: 5 }
+                experience: { type: string, default: "Senior" }
+                score: { type: number, default: 8 }
+                prev_question: { type: string, default: "Explain RESTful APIs." }
+                prev_answer: { type: string, default: "REST stands for Representational State Transfer..." }
+      responses:
+        '200':
+          description: Question generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      question: { type: string }
+                      ideal_answer: { type: string }
+                      category: { type: string }
+                      difficulty: { type: string }
+
+  /interviews/score-answer:
+    post:
+      summary: Score answer (AI)
+      tags: [Interviews]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question, user_answer]
+              properties:
+                question: { type: string, default: "What is a closure in JavaScript?" }
+                ideal_answer: { type: string, default: "A closure is the combination of a function bundled together (enclosed) with references to its surrounding state (the lexical environment)." }
+                user_answer: { type: string, default: "It is a function that remembers variables from its outer scope." }
+      responses:
+        '200':
+          description: Answer scored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      score: { type: integer }
+                      feedback: { type: string }
+
+  /interviews/analytics:
+    post:
+      summary: Get analytics (AI)
+      tags: [Interviews]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scores: 
+                  type: array
+                  items: { type: integer }
+                  default: [70, 85, 90, 65, 80]
+      responses:
+        '200':
+          description: Analytics generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      average_score: { type: number }
+                      performance: { type: string }
+                      strength: { type: string }
+                      recommendation: { type: string }
+
+  # -------------------------
+  # Expert Routes (/api/expert)
+  # -------------------------
+  /expert/register:
+    post:
+      summary: Register as expert
+      tags: [Expert]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, example: "Expert Name" }
+                phone: { type: string, example: "+1234567890" }
+                bio: { type: string, example: "Experienced software engineer with expertise in frontend development." }
+                experience: { type: number, example: 5 }
+                specialization: { type: string, example: "Frontend Developer" }
+                hourlyRate: { type: number, example: 50.00 }
+                email: { type: string, example: "expert@example.com" }
+                password: { type: string, example: "StrongPassword123" }
+      responses:
+        '201':
+          description: Expert registered
+        '400':
+          description: Validation error
+
+  /expert/login:
+    post:
+      summary: Expert login
+      tags: [Expert]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, example: "expert@example.com" }
+                password: { type: string, example: "StrongPassword123" }
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+
+  /expert/google-login:
+    post:
+      summary: Expert Google login
+      tags: [Expert]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token: { type: string, example: "google_id_token" }
+      responses:
+        '200':
+          description: Login successful
+
+  /expert/become-expert:
+    post:
+      summary: Upgrade user to expert
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string, example: "Senior Consultant" }
+                expertise: { type: array, items: { type: string }, example: ["frontend", "react"] }
+                pricePerSession: { type: number, example: 500 }
+      responses:
+        '200':
+          description: Expert profile created/updated
+
+  /expert/health-check:
+    get:
+      summary: Expert API health check
+      tags: [Expert]
+      security: []
+      responses:
+        '200':
+          description: Service healthy
+
+  /expert/my-slots:
+    get:
+      summary: Get expert slots for logged-in expert
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Slots retrieved
+
+  /expert/slots:
+    post:
+      summary: Create a new slot
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, startTime, endTime]
+              properties:
+                date: { type: string, format: date, example: "2026-03-01" }
+                startTime: { type: string, example: "10:00" }
+                endTime: { type: string, example: "11:00" }
+                type: { type: string, enum: [individual, group], example: "individual" }
+                capacity: { type: integer, example: 1 }
+      responses:
+        '201':
+          description: Slot created
+        '400':
+          description: Validation error
+
+  /expert/slots/bulk:
+    post:
+      summary: Create slots in bulk
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slots:
+                  type: array
+                  items:
+                    type: object
+                    required: [date, startTime, endTime]
+                    properties:
+                      date: { type: string, format: date, example: "2026-03-01" }
+                      startTime: { type: string, example: "10:00" }
+                      endTime: { type: string, example: "11:00" }
+                      type: { type: string, enum: [individual, group], example: "group" }
+                      capacity: { type: integer, example: 5 }
+      responses:
+        '201':
+          description: Slots created
+
+  /expert/slots/{slotId}:
+    put:
+      summary: Update a slot
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: slotId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date: { type: string, format: date }
+                startTime: { type: string, example: "10:00" }
+                endTime: { type: string, example: "11:00" }
+                type: { type: string, enum: [individual, group] }
+                capacity: { type: integer }
+      responses:
+        '200':
+          description: Slot updated
+
+    delete:
+      summary: Delete a slot
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: slotId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Slot deleted
+
+  /expert/bookings:
+    get:
+      summary: Get bookings for logged-in expert
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Bookings retrieved
+
+  /expert/bookings/{id}:
+    get:
+      summary: Get booking details
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Booking details retrieved
+
+  /expert/bookings/{bookingId}/complete:
+    put:
+      summary: Mark booking as completed
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Booking marked completed
+
+  /expert/bookings/{bookingId}/complete-group:
+    put:
+      summary: Mark group booking as completed
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Group booking marked completed
+
+  /expert/students:
+    get:
+      summary: List students for expert
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Students retrieved
+
+  /expert/students/{studentId}:
+    get:
+      summary: Get student details for expert
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Student details retrieved
+
+  # -------------------------
+  # Google Meet Routes (/api/google-meet)
+  # -------------------------
+  /google-meet/status:
+    get:
+      summary: Check Google Meet connection status
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Connection status
+
+  /google-meet/auth-url:
+    get:
+      summary: Get Google OAuth URL for expert
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OAuth URL generated
+
+  /google-meet/disconnect:
+    post:
+      summary: Disconnect Google account
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Google account disconnected
+
+  /google-meet/meet-now:
+    post:
+      summary: Start instant meeting
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                studentEmail: { type: string, example: "student@example.com" }
+                studentId: { type: string, example: "64f012345678901234567890" }
+                bookingId: { type: string, example: "64f012345678901234567890" }
+      responses:
+        '200':
+          description: Meeting started
+
+  /google-meet/meet-now-group:
+    post:
+      summary: Start group meeting
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bookingId: { type: string, example: "64f012345678901234567890" }
+      responses:
+        '200':
+          description: Group meeting started
+
+  /google-meet/attendance/{bookingId}:
+    get:
+      summary: Get attendance report for a booking
+      tags: [Expert]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Attendance report retrieved
