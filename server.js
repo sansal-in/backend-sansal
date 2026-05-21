@@ -192,7 +192,7 @@ server.listen(PORT, () => {
 
   // Self-ping every 14 minutes to keep Render instance alive
   setInterval(() => {
-    axios.get('https://sansal-backend-xyzsandeepsansal.onrender.com/api/health')
+    axios.get('https://sansal-backend-xyzsandeepsansal-moma.onrender.com/api/health')
       .then(() => console.log('Self-ping successful'))
       .catch(err => console.error('Self-ping failed', err));
   }, 14 * 60 * 1000);
