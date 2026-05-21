@@ -14,10 +14,6 @@ dist-ssr
 
 .env
 
-# Credentials / secrets
-online_meeting_key.json
-*_key.json
-*-credentials.json
 
 # Editor directories and files
 .vscode/*
