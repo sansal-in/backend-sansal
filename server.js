@@ -50,6 +50,12 @@ const aiSupportRoutes = require('./routes/aiSupportRoutes');
 
 // Initialize Express app
 const app = express();
+
+// Render (and most managed hosts) terminate TLS at a reverse proxy, so the
+// client IP arrives in X-Forwarded-For. Trust exactly one proxy hop so
+// req.ip is the real client (needed for express-rate-limit per-IP buckets).
+app.set('trust proxy', 1);
+
 setupSwagger(app);
 
 // Connect to MongoDB
