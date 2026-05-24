@@ -9,7 +9,20 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['booking', 'meeting_started', 'system'],
+    enum: [
+      'booking',
+      'booking_paid',
+      'booking_accepted',
+      'booking_rejected',
+      'booking_rescheduled',
+      'booking_completed',
+      'booking_no_show',
+      'meeting_started',
+      'course_enrolled',
+      'course_question_answered',
+      'aptitude_completed',
+      'system'
+    ],
     default: 'system'
   },
   audience: {
