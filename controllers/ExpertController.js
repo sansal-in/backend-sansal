@@ -2127,7 +2127,22 @@ exports.acceptBooking = asyncHandler(async (req, res) => {
           `🔑 Password: ${finalMeetingPassword}\n\n` +
           `— Team Sansal`
         )
-      : Promise.resolve()
+      : Promise.resolve(),
+    createNotification({
+      userId: booking.userId?._id || booking.userId,
+      type: 'booking_accepted',
+      audience: 'student',
+      title: 'Booking accepted',
+      message: `${req.expert.name} accepted your session on ${new Date(booking.slot.date).toLocaleDateString('en-IN')} at ${booking.slot.startTime}.`,
+      data: {
+        bookingId: booking._id,
+        expertId: req.expert._id,
+        expertName: req.expert.name,
+        meetingLink: finalMeetingLink,
+        meetingPassword: finalMeetingPassword,
+        scheduledAt: booking.slot?.date
+      }
+    })
   ]).catch(err => console.error('Notification error:', err));
 
   res.status(200).json({
@@ -2181,7 +2196,20 @@ exports.rejectBooking = asyncHandler(async (req, res) => {
           `Please book another slot or choose a different expert.\n\n` +
           `— Team Sansal`
         )
-      : Promise.resolve()
+      : Promise.resolve(),
+    createNotification({
+      userId: booking.userId?._id || booking.userId,
+      type: 'booking_rejected',
+      audience: 'student',
+      title: 'Booking declined',
+      message: `${req.expert.name} could not accept your session request. Reason: ${reason}`,
+      data: {
+        bookingId: booking._id,
+        expertId: req.expert._id,
+        expertName: req.expert.name,
+        reason
+      }
+    })
   ]).catch(err => console.error('Notification error:', err));
 
   // Process refund if applicable
@@ -2248,6 +2276,19 @@ exports.completeBooking = asyncHandler(async (req, res) => {
     ).catch(() => {});
   }
 
+  createNotification({
+    userId: booking.userId,
+    type: 'booking_completed',
+    audience: 'student',
+    title: 'Session completed',
+    message: `Your session with ${req.expert.name} is marked as completed. Please share your feedback.`,
+    data: {
+      bookingId: booking._id,
+      expertId: req.expert._id,
+      expertName: req.expert.name
+    }
+  }).catch(err => console.error('Notification error:', err));
+
   res.status(200).json({
     success: true,
     message: 'Session marked as completed',
@@ -2311,6 +2352,19 @@ exports.markNoShow = asyncHandler(async (req, res) => {
       `— Team Sansal`
     ).catch(() => {});
   }
+
+  createNotification({
+    userId: booking.userId,
+    type: 'booking_no_show',
+    audience: 'student',
+    title: 'Session missed',
+    message: `You were marked as no-show for your session with ${req.expert.name}. Please rebook if you'd like another slot.`,
+    data: {
+      bookingId: booking._id,
+      expertId: req.expert._id,
+      expertName: req.expert.name
+    }
+  }).catch(err => console.error('Notification error:', err));
 
   res.status(200).json({
     success: true,
