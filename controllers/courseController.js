@@ -4,6 +4,7 @@ const CourseQuestion = require("../models/CourseQuestion");
 const CourseSupportTicket = require("../models/CourseSupportTicket");
 const CourseLessonSubmission = require("../models/CourseLessonSubmission");
 const { asyncHandler, AppError } = require("../middleware/errorMiddleware");
+const { createNotification } = require("../services/notificationService");
 
 const normalizeArray = (value) => (Array.isArray(value) ? value : []);
 
@@ -204,6 +205,20 @@ const enrollCourse = asyncHandler(async (req, res) => {
   course.enrolledCount = (course.enrolledCount || 0) + 1;
   await course.save();
 
+  createNotification({
+    userId: req.user._id,
+    type: 'course_enrolled',
+    audience: 'student',
+    title: 'Course enrolled',
+    message: `You're enrolled in "${course.title}". Start learning anytime from your dashboard.`,
+    data: {
+      courseId: course._id,
+      courseTitle: course.title,
+      enrollmentId: enrollment._id,
+      finalAmount: enrollment.finalAmount
+    }
+  }).catch(err => console.error('Course enrolment notification error:', err));
+
   res.status(201).json({
     success: true,
     enrollment,
@@ -383,6 +398,21 @@ const answerCourseQuestion = asyncHandler(async (req, res) => {
   question.answer = answer;
   question.answeredAt = new Date();
   await question.save();
+
+  if (question.userId) {
+    createNotification({
+      userId: question.userId,
+      type: 'course_question_answered',
+      audience: 'student',
+      title: 'Your question has an answer',
+      message: `An expert answered your question on "${course.title}".`,
+      data: {
+        courseId: course._id,
+        courseTitle: course.title,
+        questionId: question._id
+      }
+    }).catch(err => console.error('Course question notification error:', err));
+  }
 
   res.status(200).json({
     success: true,
