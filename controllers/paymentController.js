@@ -5,6 +5,7 @@ const User = require('../models/User');
 const razorpayService = require('../services/razorpayService');
 const slotService = require('../services/slotService');
 const emailService = require('../services/emailService');
+const { createNotification } = require('../services/notificationService');
 const { asyncHandler, AppError } = require('../middleware/errorMiddleware');
 
 // Verify payment and confirm booking
@@ -105,7 +106,21 @@ const verifyPayment = asyncHandler(async (req, res) => {
     emailService.sendBookingConfirmation(booking, user, expert),
     emailService.sendExpertBookingNotification(booking, user, expert),
     emailService.sendPaymentSuccess(payment, user),
-    user?.phone ? sendBookingWhatsApp(user.phone, user.displayName || 'Student', expert?.name || 'Expert', slotDate, slotTime) : Promise.resolve()
+    user?.phone ? sendBookingWhatsApp(user.phone, user.displayName || 'Student', expert?.name || 'Expert', slotDate, slotTime) : Promise.resolve(),
+    createNotification({
+      userId: booking.userId,
+      type: 'booking_paid',
+      audience: 'student',
+      title: 'Booking confirmed',
+      message: `Your payment for the session with ${expert?.name || 'your expert'} on ${slotDate} at ${slotTime} was successful.`,
+      data: {
+        bookingId: booking._id,
+        expertId: booking.expertId,
+        expertName: expert?.name,
+        scheduledAt: booking.scheduledAt || booking?.slot?.date,
+        amount: booking.amount
+      }
+    })
   ]).catch(() => null);
   
   res.status(200).json({
