@@ -2,6 +2,7 @@ const AptitudeAttempt = require('../models/AptitudeAttempt');
 const User = require('../models/User');
 const { sendAptitudeResult } = require('../services/whatsappService');
 const { sendAptitudeResultEmail } = require('../services/emailService');
+const { createNotification } = require('../services/notificationService');
 
 const normalizeAnswer = (answer = {}) => {
   const question = `${answer.question || ''}`.trim();
@@ -92,6 +93,23 @@ const aptitudeController = {
           console.error('Aptitude email send failed:', err.message);
         }
       })();
+
+      // In-app notification
+      createNotification({
+        userId: req.user._id,
+        type: 'aptitude_completed',
+        audience: 'student',
+        title: 'Aptitude test result',
+        message: `You scored ${scorePercent}% (${correctCount}/${totalQuestions}) on ${datasetLabel || 'the aptitude test'}.`,
+        data: {
+          attemptId: attempt._id,
+          datasetId,
+          datasetLabel,
+          scorePercent,
+          correctCount,
+          totalQuestions
+        }
+      }).catch(err => console.error('Aptitude notification error:', err.message));
 
       res.status(201).json({
         success: true,
