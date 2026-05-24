@@ -4,6 +4,7 @@ const Payment = require('../models/Payment');
 const slotService = require('../services/slotService');
 const razorpayService = require('../services/razorpayService');
 const emailService = require('../services/emailService');
+const { createNotification } = require('../services/notificationService');
 const { asyncHandler, AppError } = require('../middleware/errorMiddleware');
 const { buildPaginationQuery, generateMeetingLink, generateMeetingPassword } = require('../utils/helpers');
 const { BOOKING_EXPIRY_MINUTES } = require('../utils/constants');
@@ -234,7 +235,34 @@ const rescheduleBooking = asyncHandler(async (req, res) => {
 
   booking.sessionType = newSlot?.type === 'group' ? 'group' : 'individual';
   await booking.save();
-  
+
+  const formattedDate = newSlot?.date ? new Date(newSlot.date).toLocaleDateString('en-IN') : 'a new date';
+  Promise.allSettled([
+    createNotification({
+      userId: booking.userId,
+      type: 'booking_rescheduled',
+      audience: 'student',
+      title: 'Booking rescheduled',
+      message: `Your session has been rescheduled to ${formattedDate} at ${newSlot.startTime}.`,
+      data: {
+        bookingId: booking._id,
+        expertId: booking.expertId,
+        scheduledAt: newSlot.date
+      }
+    }),
+    createNotification({
+      userId: expert.user,
+      type: 'booking_rescheduled',
+      audience: 'expert',
+      title: 'A session was rescheduled',
+      message: `A student rescheduled their session to ${formattedDate} at ${newSlot.startTime}.`,
+      data: {
+        bookingId: booking._id,
+        scheduledAt: newSlot.date
+      }
+    })
+  ]).catch(err => console.error('Reschedule notification error:', err));
+
   res.status(200).json({
     success: true,
     message: 'Booking rescheduled successfully',
